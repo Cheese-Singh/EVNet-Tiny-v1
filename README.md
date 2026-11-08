@@ -140,9 +140,22 @@ Parameter counts for the ResNets are computed from the standard torchvision laye
 ├── EVNet_Tiny.ipynb        # data, model, training, fine-tuning, S²-FracMix experiments
 ├── assets/
 │   └── training_curves.png # accuracy and loss curves from the main run
+├── evnet-tiny.bib          # BibTeX for citing this work and the papers it builds on
 └── README.md
 ```
 
 ## Citation
 
-If you use this work, please cite the repository. Add your preferred BibTeX entry here.
+If you use this work, please cite the repository:
+
+```bibtex
+@misc{singh2026evnettiny,
+  author       = {Singh, Ekamveer},
+  title        = {{EVNet-Tiny}: A Compact Hybrid {ConvNeXt}--Attention Network for {Tiny ImageNet}},
+  year         = {2026},
+  howpublished = {\url{https://github.com/Cheese-Singh/EVNet-Tiny}},
+  note         = {Source code}
+}
+```
+
+This entry, together with the references for the architecture and training recipe, is also in [`evnet-tiny.bib`](evnet-tiny.bib).
