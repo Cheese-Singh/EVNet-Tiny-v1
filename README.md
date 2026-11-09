@@ -10,8 +10,6 @@ A compact hybrid **ConvNeXt + global-attention** image classifier, trained from 
 | Compute (approx.) | ~1.46 GMACs per 64×64 image |
 | Hardware | Single Tesla T4 (Colab), ~4.4–5.2 min/epoch |
 
-![Training curves](assets/training_curves.png)
-
 ---
 
 ## Architecture
@@ -88,26 +86,41 @@ Neither experiment improved on the baseline in the epochs recorded in the notebo
 
 ---
 
-## Comparison with ResNet
+## Comparison with existing models
 
-The notebook's `build_model()` can also build **ResNet-18** and **ResNet-50** with the same 64×64 adaptation (3×3 stride-1 stem, no max-pool), so a like-for-like comparison is a one-line change (`MODEL_NAME = "resnet18"`). Those runs are **not in this notebook yet**, so their accuracy columns are left open rather than filled with numbers from other papers, which use different recipes and aren't comparable.
+### Published Tiny ImageNet reference points
 
-| | EVNet-Tiny | ResNet-18 | ResNet-50 |
-|---|---|---|---|
-| Building block | ConvNeXt block + attention in last stage | BasicBlock (two 3×3 convs) | Bottleneck (1×1, 3×3, 1×1) |
-| Normalisation | LayerNorm | BatchNorm | BatchNorm |
-| Activation | GELU | ReLU | ReLU |
-| Spatial mixing | 7×7 depthwise conv; global self-attention at 8×8 | 3×3 conv | 3×3 conv |
-| Downsampling | 2×2 stride-2 conv (patchify-style) | stride-2 3×3 conv | stride-2 3×3 conv |
-| Residual scaling | LayerScale (1e-3) | none | none |
-| Stochastic depth | yes (0.1) | no | no |
-| Parameters (200 classes) | **6.70M** | ~11.27M | ~23.91M |
-| Approx. MACs at 64×64 | **~1.46G** | ~2.22G | ~5.19G |
-| Top-1 on Tiny ImageNet, same recipe | **67.40%** | *to run* | *to run* |
+| Model | Top-1 | Top-5 | Params | Setup behind the number |
+|---|---:|---:|---:|---|
+| **EVNet-Tiny (this work)** | **67.40%** | **85.78%** | **6.70M** | This repo; from scratch; single seed; best epoch on val |
+| ResNet-18 | 69.30% | 84.80% | 11.7M | [Leaderboard entry](https://www.sota2.com/research/sota/image-classification-on-tiny-imagenet-acc-at-1-acc-at-5); recipe not stated |
+| MobileNetV3-Small | 59.32% | 81.38% | 1.71M | [Third-party PyTorch implementation](https://github.com/ShowLo/MobileNetV3); from scratch, mean of 5 runs |
+| MobileNetV3-Small (more tricks) | 62.62% | 84.04% | 1.71M | Same repo, plus EMA, label smoothing, MixUp and no bias decay |
 
-Parameter counts for the ResNets are computed from the standard torchvision layer shapes with the 64×64 stem and a 200-way head; MACs count convolutions, linear layers and attention matrix products only (norms and activations ignored). EVNet-Tiny's own count was checked against the 6.70M printed by the notebook.
+Compared with these numbers, EVNet-Tiny is 1.90 points below the listed ResNet-18 top-1 and 0.98 points above its top-5, with about 40% fewer parameters. It is about 5 points above MobileNetV3-Small trained with a similar set of tricks, at roughly four times the parameters.
 
-**What the architectural comparison suggests.** EVNet-Tiny uses roughly 40% fewer parameters than ResNet-18 and about 30% less compute, while borrowing the modernised design of ConvNeXt (large depthwise kernels, LayerNorm, GELU, LayerScale, patchify-style downsampling) and a transformer-style global mixing step at the end. Whether that translates into higher accuracy than the ResNets under an identical recipe is exactly what the missing runs would show, and is an open question here.
+**These are not controlled comparisons.** Each number comes from a different implementation and training recipe, and in some cases the resolution and pretraining are not stated. For scale: the same leaderboard lists ResNet-18 entries from 61.68% (plain training) up to 70.38% (with the best mixing augmentation), so the gap to the 69.30% entry is smaller than the spread caused by the recipe alone. The ResNet-18 parameter count (11.7M) is the standard 1,000-class figure; with a 200-class head it is about 11.3M.
+
+**ConvNeXt-Tiny.** Its official ImageNet-1K result (82.14% top-1, 96.06% top-5, 28.59M parameters, per the [OpenMMLab benchmark](https://github.com/open-mmlab/mmpretrain/blob/main/configs/convnext/README.md)) is not comparable here: ImageNet-1K has 1,000 classes at typically 224×224, versus 200 classes at 64×64. I did not find a reliable, directly comparable Tiny ImageNet result for it.
+
+### Architecture and cost
+
+The notebook's `build_model()` can also build ResNet-18 and ResNet-50 with the same 64×64 adaptation (3×3 stride-1 stem, no max-pool), so a same-recipe comparison is a one-line change (`MODEL_NAME = "resnet18"`).
+
+| | EVNet-Tiny | ResNet-18 | ResNet-50 | MobileNetV3-Small |
+|---|---|---|---|---|
+| Building block | ConvNeXt block, attention in last stage | BasicBlock (two 3×3 convs) | Bottleneck (1×1, 3×3, 1×1) | Inverted residual with squeeze-excite |
+| Normalisation | LayerNorm | BatchNorm | BatchNorm | BatchNorm |
+| Activation | GELU | ReLU | ReLU | ReLU / h-swish |
+| Spatial mixing | 7×7 depthwise conv; global self-attention at 8×8 | 3×3 conv | 3×3 conv | 3×3 / 5×5 depthwise conv |
+| Residual scaling / stochastic depth | LayerScale (1e-3) / yes (0.1) | none / no | none / no | none / no |
+| Parameters (200 classes) | **6.70M** | ~11.27M | ~23.91M | 1.71M (as reported) |
+| Approx. MACs | ~1.46G (64×64) | ~2.22G (64×64) | ~5.19G (64×64) | ~52M (as reported) |
+| Top-1, same recipe as EVNet | **67.40%** | *to run* | *to run* | *to run* |
+
+ResNet parameter counts and all MACs for EVNet-Tiny and the ResNets are computed from the layer shapes with the 64×64 stem and a 200-way head (convolutions, linear layers and attention matrix products only; norms and activations ignored). EVNet-Tiny's own parameter count was checked against the 6.70M printed by the notebook. MobileNetV3-Small figures are taken from its repository.
+
+**Next step for a fair comparison:** train ResNet-18, MobileNetV3-Small and ConvNeXt-Tiny with the exact split, resolution, augmentations and evaluation pipeline used here, then fill in the last row.
 
 ### Related work
 
@@ -124,7 +137,7 @@ Parameter counts for the ResNets are computed from the standard torchvision laye
 - **The training log is incomplete.** The cosine schedule was set for 200 epochs, but the notebook's recorded output ends at epoch 162 (resumed across several Colab sessions), and epochs 139–150 are missing from the log. The best checkpoint (epoch 137) is the one reported; the learning rate had not fully decayed to its minimum.
 - **Best-epoch selection uses the validation set.** Tiny ImageNet's public validation split doubles as the test set here, so 67.40% is a best-epoch-on-val figure and is slightly optimistic compared with a held-out test number.
 - **Single seed (42).** There are no confidence intervals, so differences of a few tenths of a percent (such as those between the fine-tuning runs and the baseline) are within normal run-to-run noise.
-- **No ResNet baselines yet** (see above).
+- **No controlled baselines yet.** ResNet-18/50, MobileNetV3-Small and ConvNeXt-Tiny have not been trained with this recipe; the comparison above uses published numbers from other setups.
 - **Overfitting after about epoch 100.** Stronger regularisation, a shorter schedule, or higher stochastic depth would be natural next things to try.
 
 ---
@@ -138,8 +151,6 @@ Parameter counts for the ResNets are computed from the standard torchvision laye
 ```
 .
 ├── EVNet_Tiny.ipynb        # data, model, training, fine-tuning, S²-FracMix experiments
-├── assets/
-│   └── training_curves.png # accuracy and loss curves from the main run
 ├── evnet-tiny.bib          # BibTeX for citing this work and the papers it builds on
 └── README.md
 ```
