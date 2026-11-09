@@ -116,7 +116,6 @@ The notebook's `build_model()` can also build ResNet-18 and ResNet-50 with the s
 | Residual scaling / stochastic depth | LayerScale (1e-3) / yes (0.1) | none / no | none / no | none / no |
 | Parameters (200 classes) | **6.70M** | ~11.27M | ~23.91M | 1.71M (as reported) |
 | Approx. MACs | ~1.46G (64×64) | ~2.22G (64×64) | ~5.19G (64×64) | ~52M (as reported) |
-| Top-1, same recipe as EVNet | **67.40%** | *to run* | *to run* | *to run* |
 
 ResNet parameter counts and all MACs for EVNet-Tiny and the ResNets are computed from the layer shapes with the 64×64 stem and a 200-way head (convolutions, linear layers and attention matrix products only; norms and activations ignored). EVNet-Tiny's own parameter count was checked against the 6.70M printed by the notebook. MobileNetV3-Small figures are taken from its repository.
 
